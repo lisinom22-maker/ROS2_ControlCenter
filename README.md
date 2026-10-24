@@ -44,6 +44,7 @@ bash scripts/install_desktop.sh
 - 启动器：`~/.local/bin/ros2-control-center`
 - 独立运行副本：`~/.local/share/ros2-control-center/ros2_control_center/`
 - 桌面图标：`~/桌面/ROS2 控制中心.desktop`
+- 桌面使用说明：`~/桌面/ROS2 控制中心使用说明.txt`（与程序右上角“使用说明”内容一致）
 - 启动日志：`~/.local/state/ros2-control-center/startup.log`
 
 安装器遵循 `XDG_DATA_HOME`、`XDG_CONFIG_HOME/user-dirs.dirs` 和可选的 `XDG_DESKTOP_DIR`；启动日志遵循 `XDG_STATE_HOME`。只替换本应用文件，不修改其他桌面入口或现有系统监控。安装副本与源码目录独立，删除开发 worktree 后仍可启动。支持文件管理器信任元数据时自动设置；否则右键桌面图标选择“允许启动”。
@@ -55,6 +56,8 @@ bash scripts/install_desktop.sh
 ## 按按钮完成一个 ROS 2 项目
 
 窗口顶部的“工作空间与功能包”区域会代做环境加载和常见命令。主界面只保留操作控件；右上角“使用说明”按钮可打开详细步骤。只有节点中的具体业务代码需要自己在 VS Code 中写。
+
+完整的项目用途、功能、首次使用准备和逐步操作，也可直接阅读[使用说明](src/ros2_control_center/USAGE.txt)。
 
 | 顺序 | 在界面上怎么按 | 完成后会怎样 |
 | --- | --- | --- |

@@ -34,7 +34,8 @@ runtime = data / 'ros2-control-center'
 package = runtime / 'ros2_control_center'
 launcher = home / '.local/bin/ros2-control-center'
 entry = desktop / 'ROS2 控制中心.desktop'
-for target in (runtime, package, launcher, entry):
+guide = desktop / 'ROS2 控制中心使用说明.txt'
+for target in (runtime, package, launcher, entry, guide):
     if target.is_symlink():
         raise SystemExit(f'Refusing to replace a symbolic link: {target}')
 runtime.mkdir(parents=True, exist_ok=True)
@@ -68,6 +69,7 @@ template = (root / 'packaging/ros2-control-center.desktop').read_text(encoding='
 entry.write_text('\n'.join('Exec=' + exec_path if line.startswith('Exec=') else line
                            for line in template.splitlines()) + '\n', encoding='utf-8')
 entry.chmod(0o755)
+shutil.copyfile(root / 'src/ros2_control_center/USAGE.txt', guide)
 gio = shutil.which('gio')
 trusted = False
 if gio:
@@ -77,5 +79,6 @@ if gio:
 print(f'Runtime: {runtime}')
 print(f'Launcher: {launcher}')
 print(f'Desktop: {entry}')
+print(f'Guide: {guide}')
 print('Desktop trust: ' + ('set' if trusted else 'unavailable; use “Allow Launching” in the desktop menu'))
 PY

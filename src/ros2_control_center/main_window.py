@@ -10,7 +10,7 @@ from PyQt5.QtWidgets import (
     QApplication, QCheckBox, QComboBox, QDialog, QDialogButtonBox, QFileDialog,
     QFrame, QGridLayout, QGroupBox, QHBoxLayout, QInputDialog, QLabel,
     QLineEdit, QListWidget, QMainWindow, QMessageBox, QPushButton,
-    QScrollArea, QTabWidget, QVBoxLayout, QWidget,
+    QScrollArea, QTabWidget, QTextBrowser, QVBoxLayout, QWidget,
 )
 
 from .catalog import ToolSpec, default_catalog, validate_tool
@@ -48,8 +48,7 @@ def _button(text: str, name: str, icon: str = '') -> QPushButton:
 
 def _launch_external(argv: tuple[str, ...]) -> bool:
     """Run an explicit workspace-manager output as an independent desktop action."""
-    started, _pid = QProcess.startDetached(argv[0], list(argv[1:]))
-    return started
+    return QProcess.startDetached(argv[0], list(argv[1:]))
 
 
 class ToolCard(QFrame):
@@ -876,18 +875,18 @@ class MainWindow(QMainWindow):
             self.log_event(f'查看话题失败：{exc}')
 
     def show_workspace_help(self) -> None:
-        QMessageBox.information(
-            self, '工作空间按钮使用说明',
-            '1. 工作空间：点“按名称新建…”可弹窗输入名字创建；已有空间从“已用过”下拉框选，或点“选择工作空间…”打开选择窗口。也可手填路径并点“创建工作空间”。'
-            '\n2. 写代码位置：点“选择文件夹…”挑选当前工作空间 src 内的文件夹；或点“创建文件夹…”，在弹窗输入名字并确定。新文件夹会自动选中。'
-            '\n3. 功能包：点“设置并创建功能包…”，在弹窗输入小写包名，选择 Python 或 C++，勾选要用的 ROS 库，然后点“创建功能包”。当前系统使用 ROS 2 Humble。'
-            '\n4. 新建包后会自动在 VS Code 打开示例源码。以后可点“选择源码文件…”挑选文件，选中后会立即打开 VS Code；也可点“编辑选中包源码”。'
-            '\n5. 点“在终端构建”；等待终端显示 Summary 成功，失败则先修正代码。'
-            '\n6. 点“刷新可运行节点”，选中节点，再点“运行节点”；输出显示在窗口中，可点“停止节点”。'
-            '\n7. 要看话题消息，先运行发布该话题的节点，输入话题名并点“查看话题”。'
-            '\n每个工作空间独立；切换工作空间后，文件夹与功能包选择也会同步切换。'
-            '\n关闭控制中心会停止由本窗口运行的节点。“停止全部”仅管理上方常用工具；文件夹、构建和话题终端独立运行。',
-        )
+        dialog = QDialog(self)
+        dialog.setWindowTitle('ROS 2 控制中心使用说明')
+        dialog.resize(760, 560)
+        layout = QVBoxLayout(dialog)
+        content = QTextBrowser(dialog)
+        content.setAccessibleName('ROS 2 控制中心使用说明正文')
+        content.setPlainText(Path(__file__).with_name('USAGE.txt').read_text(encoding='utf-8'))
+        layout.addWidget(content)
+        buttons = QDialogButtonBox(QDialogButtonBox.Close, parent=dialog)
+        buttons.rejected.connect(dialog.reject)
+        layout.addWidget(buttons)
+        dialog.exec_()
 
     def refresh_graph(self, kind: GraphKind) -> None:
         if self._closed:

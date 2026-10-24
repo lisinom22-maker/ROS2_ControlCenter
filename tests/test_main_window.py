@@ -13,7 +13,7 @@ from PyQt5.QtWidgets import (
 )
 
 from ros2_control_center import app as application
-from ros2_control_center.main_window import MainWindow, ToolCard
+from ros2_control_center.main_window import MainWindow, ToolCard, _launch_external
 from ros2_control_center.process_manager import ProcessManager, ProcessState
 from ros2_control_center.ros_graph import GraphKind, GraphResult, RosGraphWorker
 from ros2_control_center.workspace import WorkspaceManager
@@ -74,6 +74,14 @@ def window(qt_app, manager, tmp_path):
 def events(window):
     return '\n'.join(window.event_log.item(index).text()
                      for index in range(window.event_log.count()))
+
+
+def test_external_launcher_accepts_pyqt_boolean_result(monkeypatch):
+    calls = []
+    monkeypatch.setattr(QProcess, 'startDetached',
+                        lambda program, args: calls.append((program, args)) or True)
+    assert _launch_external(('code', '--reuse-window', '/tmp/example.py')) is True
+    assert calls == [('code', ['--reuse-window', '/tmp/example.py'])]
 
 
 def pump(qt_app, predicate, timeout=2):
