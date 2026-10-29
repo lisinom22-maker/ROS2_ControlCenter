@@ -18,7 +18,7 @@ from .process_manager import ProcessManager, ProcessRecord, ProcessState
 from .ros_graph import GraphKind, GraphResult, RosGraphWorker
 from .workspace import WorkspaceManager
 from .guided_workflow import (
-    ROS_ENVIRONMENT_LABEL, RecentWorkspaces, available_dependencies,
+    ROS_ENVIRONMENT_LABEL, RecentWorkspaces, available_dependencies, build_target_command,
     create_code_folder, create_package, editor_command,
     list_executables, list_packages, run_process_command, topic_terminal_command,
     validate_code_folder,
@@ -142,6 +142,7 @@ class MainWindow(QMainWindow):
         self._packages = {}
         self.code_folder: Path | None = None
         self._folder_workspace: Path | None = None
+        self._build_target_workspace: Path | None = None
         self.setWindowTitle('ROS 2 控制中心')
         self.setAccessibleName('ROS 2 控制中心')
         self.resize(1000, 940)
@@ -273,7 +274,7 @@ class MainWindow(QMainWindow):
         self.create_button = _button('创建工作空间', '创建 ROS 工作空间', 'folder-new')
         self.new_workspace_button = _button('按名称新建…', '输入名字创建新的 ROS 工作空间', 'folder-new')
         self.open_button = _button('打开文件夹', '打开工作空间文件夹', 'folder-open')
-        self.build_button = _button('在终端构建', '在独立终端构建工作空间', 'utilities-terminal')
+        self.build_button = _button('在终端构建', '在独立终端构建所选目标', 'utilities-terminal')
         for button in (self.create_button, self.new_workspace_button,
                        self.open_button):
             actions.addWidget(button)
@@ -322,9 +323,17 @@ class MainWindow(QMainWindow):
         self.package_detail.setWordWrap(True)
         layout.addWidget(self.package_detail)
 
-        layout.addWidget(QLabel('运行节点'))
+        layout.addWidget(QLabel('构建与运行'))
+        build_row = QHBoxLayout()
+        build_target_label = QLabel('编译目标：')
+        self.build_target_combo = QComboBox()
+        self.build_target_combo.setAccessibleName('当前工作空间的编译目标')
+        build_target_label.setBuddy(self.build_target_combo)
+        build_row.addWidget(build_target_label)
+        build_row.addWidget(self.build_target_combo, 1)
+        build_row.addWidget(self.build_button)
+        layout.addLayout(build_row)
         run_row = QHBoxLayout()
-        run_row.addWidget(self.build_button)
         self.executable_combo = QComboBox()
         self.executable_combo.setAccessibleName('所选功能包的可运行节点')
         run_row.addWidget(self.executable_combo, 1)
@@ -509,8 +518,12 @@ class MainWindow(QMainWindow):
                 command = self.workspace_manager.open_command(path)
                 success = f'已打开工作空间文件夹：{path}'
             else:
-                command = self.workspace_manager.build_terminal_command(path)
-                success = f'已在独立终端请求构建：{path}；请在终端查看构建结果'
+                target = self.build_target_combo.currentData()
+                if target is not None and self._build_target_workspace != path:
+                    raise ValueError('工作空间已切换；请先刷新功能包列表，再选择编译目标')
+                command = build_target_command(path, target)
+                label = f'功能包 {target}（含工作空间内依赖）' if target else '整个工作空间'
+                success = f'已在独立终端请求构建：{path} · {label}；请在终端查看构建结果'
             if self._launch(command):
                 self.log_event(success)
                 self._remember_workspace(path)
@@ -543,8 +556,12 @@ class MainWindow(QMainWindow):
 
     def refresh_packages(self) -> None:
         previous = self.package_combo.currentData()
+        previous_build_target = self.build_target_combo.currentData()
         self.package_combo.blockSignals(True)
         self.package_combo.clear()
+        self.build_target_combo.blockSignals(True)
+        self.build_target_combo.clear()
+        self.build_target_combo.addItem('整个工作空间', None)
         self._packages = {}
         ready = False
         try:
@@ -565,18 +582,26 @@ class MainWindow(QMainWindow):
                 self._packages = {info.name: info for info in packages}
                 for info in packages:
                     self.package_combo.addItem(info.name, info.name)
+                    self.build_target_combo.addItem(info.name, info.name)
                 if previous in self._packages:
                     self.package_combo.setCurrentIndex(self.package_combo.findData(previous))
+                if self._build_target_workspace == workspace and previous_build_target in self._packages:
+                    self.build_target_combo.setCurrentIndex(
+                        self.build_target_combo.findData(previous_build_target))
+                self._build_target_workspace = workspace
         except (OSError, ValueError):
             pass
         if not ready:
             self.code_folder = None
             self._folder_workspace = None
+            self._build_target_workspace = None
         self._update_code_folder_label()
         for button in (self.choose_code_folder_button, self.create_folder_button,
                        self.open_code_folder_button):
             button.setEnabled(ready)
+        self.build_target_combo.setEnabled(ready)
         self.package_combo.blockSignals(False)
+        self.build_target_combo.blockSignals(False)
         self._on_package_selected()
 
     def _selected_code_folder(self) -> Path:

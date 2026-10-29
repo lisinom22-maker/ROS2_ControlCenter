@@ -58,6 +58,16 @@ def test_missing_target_creates_only_workspace_and_src(tmp_path):
     assert list(target.iterdir()) == [target / 'src']
 
 
+def test_build_terminal_can_target_one_package_with_its_workspace_dependencies(tmp_path):
+    workspace = tmp_path / 'robot ws'
+    assert WorkspaceManager.create(workspace).ready
+    script = WorkspaceManager.build_terminal_command(workspace, 'robot_control')[-1]
+    assert 'colcon build --symlink-install --packages-up-to robot_control' in script
+    assert "cd -- '" + str(workspace) + "'" in script
+    with pytest.raises(ValueError, match='名称无效'):
+        WorkspaceManager.build_terminal_command(workspace, 'robot; touch /tmp/unsafe')
+
+
 def test_existing_workspace_is_ready_without_changing_files(tmp_path):
     target = tmp_path / 'existing_ws'
     (target / 'src').mkdir(parents=True)

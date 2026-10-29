@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 import os
 from pathlib import Path
+import re
 import shlex
 import stat
 
@@ -145,14 +146,19 @@ class WorkspaceManager:
         return ('nautilus', '--', str(path))
 
     @staticmethod
-    def build_terminal_command(path: Path) -> tuple[str, ...]:
+    def build_terminal_command(path: Path, package_name: str | None = None) -> tuple[str, ...]:
         path = Path(path)
         if not WorkspaceManager.is_workspace(path):
             raise ValueError('工作空间尚未就绪')
+        if package_name is not None and not re.fullmatch(r'[a-z][a-z0-9_]*', package_name):
+            raise ValueError('编译目标功能包名称无效')
+        command = 'colcon build --symlink-install'
+        if package_name is not None:
+            command += f' --packages-up-to {shlex.quote(package_name)}'
         build = ' && '.join((
             f'cd -- {shlex.quote(str(path))}',
             'source /opt/ros/humble/setup.bash',
-            'colcon build --symlink-install',
+            command,
         ))
         # A subshell also contains setup scripts that call exit or change shell
         # options, so their failures still reach the result and confirmation.

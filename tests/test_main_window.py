@@ -292,6 +292,47 @@ def test_workspace_open_build_launch_exact_manager_commands(qt_app, manager, tmp
         instance.close()
 
 
+def test_build_target_switches_with_workspace_and_rejects_stale_package(
+        qt_app, manager, tmp_path):
+    launched = []
+    first = tmp_path / 'first_ws'
+    second = tmp_path / 'second_ws'
+    for workspace, package in ((first, 'camera'), (second, 'navigation')):
+        WorkspaceManager.create(workspace)
+        package_dir = workspace / 'src' / package
+        package_dir.mkdir()
+        (package_dir / 'package.xml').write_text(
+            f'<package><name>{package}</name><export><build_type>ament_python'
+            '</build_type></export></package>', encoding='utf-8')
+    instance = MainWindow(manager=manager, command_launcher=lambda argv: launched.append(argv) or True,
+                          recent_workspaces=RecentWorkspaces(tmp_path / 'workspaces.json'))
+    try:
+        instance.workspace_path.setText(str(first))
+        instance.refresh_packages()
+        assert instance.build_target_combo.itemText(0) == '整个工作空间'
+        instance.build_target_combo.setCurrentIndex(instance.build_target_combo.findData('camera'))
+        instance.build_button.click()
+        assert launched[-1] == WorkspaceManager.build_terminal_command(first, 'camera')
+        assert '功能包 camera' in events(instance)
+
+        instance.workspace_path.setText(str(second))
+        instance.refresh_packages()
+        assert instance.build_target_combo.currentData() is None
+        assert instance.build_target_combo.findData('camera') == -1
+        instance.build_target_combo.setCurrentIndex(instance.build_target_combo.findData('navigation'))
+        instance.build_button.click()
+        assert launched[-1] == WorkspaceManager.build_terminal_command(second, 'navigation')
+
+        (second / 'src' / 'navigation' / 'package.xml').unlink()
+        before = len(launched)
+        instance.build_button.click()
+        assert len(launched) == before
+        assert '编译目标不在当前工作空间' in events(instance)
+    finally:
+        instance.request_close('detach')
+        instance.close()
+
+
 def test_workspace_external_launcher_failure_is_visible(qt_app, manager, tmp_path):
     target = tmp_path / 'ready'
     WorkspaceManager.create(target)

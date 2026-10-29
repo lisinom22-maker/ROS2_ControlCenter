@@ -236,6 +236,15 @@ def list_packages(workspace: Path) -> tuple[PackageInfo, ...]:
     return tuple(sorted(packages, key=lambda info: info.name))
 
 
+def build_target_command(workspace: Path, package_name: str | None) -> tuple[str, ...]:
+    """Build all packages or one selected source package and its workspace dependencies."""
+    workspace = _workspace(workspace)
+    if package_name is not None and package_name not in {
+            info.name for info in list_packages(workspace)}:
+        raise ValueError('编译目标不在当前工作空间；请刷新功能包列表后重新选择')
+    return WorkspaceManager.build_terminal_command(workspace, package_name)
+
+
 def list_executables(workspace: Path, package_name: str) -> tuple[str, ...]:
     """Read locally built ROS executable entries without starting a ROS daemon."""
     workspace = _workspace(workspace)
@@ -289,7 +298,7 @@ def run_terminal_command(workspace: Path, package_name: str, executable: str) ->
     package_name = _valid_package_name(package_name)
     executable = _valid_package_name(executable)
     if executable not in list_executables(workspace, package_name):
-        raise ValueError('所选节点尚未构建；请先点击“构建工作空间”')
+        raise ValueError('所选节点尚未构建；请先选择编译目标并点击“在终端构建”')
     return _terminal_command(workspace, f'ros2 run {package_name} {executable}')
 
 
@@ -304,7 +313,7 @@ def run_process_command(workspace: Path, package_name: str, executable: str) -> 
     package_name = _valid_package_name(package_name)
     executable = _valid_package_name(executable)
     if executable not in list_executables(workspace, package_name):
-        raise ValueError('所选节点尚未构建；请先点击“构建工作空间”')
+        raise ValueError('所选节点尚未构建；请先选择编译目标并点击“在终端构建”')
     candidates = (
         workspace / 'install' / package_name / 'lib' / package_name / executable,
         workspace / 'install' / 'lib' / package_name / executable,
